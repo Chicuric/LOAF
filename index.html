@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberChat — Веб-мессенджер</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e24;
+            --bg-sidebar: #141416;
+            --bg-chat: #2a2a35;
+            --bg-input: #1a1a22;
+            --text-primary: #e1e1e6;
+            --text-secondary: #9b9baa;
+            --text-muted: #6b6b7a;
+            --accent: #7c3aed;
+            --accent-glow: #a78bfa;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --border: #2e2e3a;
+            --msg-hover: #32323e;
+            --sidebar-width: 240px;
+            --font-family: 'Segoe UI', 'Arial', system-ui, -apple-system, sans-serif;
+            --transition-fast: 0.15s ease;
+            --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3a3a48;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a4a5a;
+        }
+
+        /* ===== MODAL OVERLAY ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* ===== MODAL WINDOW ===== */
+        .modal {
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px 32px;
+            width: 420px;
+            max-width: 92vw;
+            box-shadow:
+                0 0 60px rgba(124, 58, 237, 0.2),
+                0 20px 60px rgba(0, 0, 0, 0.7),
+                inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 1001;
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .modal-title {
+            font-size: 26px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 6px;
+            background: linear-gradient(135deg, #c084fc, #7c3aed, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 1px;
+        }
+        .modal-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 28px;
+            letter-spacing: 0.5px;
+        }
+        .modal-label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .modal-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: var(--font-family);
+            outline: none;
+            transition: all var(--transition-fast);
+            margin-bottom: 20px;
+        }
+        .modal-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(124, 58, 237, 0.3), 0 0 0 4px rgba(124, 58, 237, 0.08);
+        }
+        .modal-input::placeholder {
+            color: #4a4a58;
+        }
+
+        /* ===== COLOR PICKER ===== */
+        .color-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        .color-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all var(--transition-fast);
+            position: relative;
+            flex-shrink: 0;
+        }
+        .color-dot:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 20px currentColor;
+        }
+        .color-dot.active {
+            border-color: #fff;
+            box-shadow: 0 0 28px currentColor, 0 0 0 6px rgba(255, 255, 255, 0.1);
+        }
+        .color-dot.active::after {
+            content: '✓';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            color: #fff;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+        }
+
+        /* ===== ROOM ID ROW ===== */
+        .room-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+        .room-row .modal-input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .btn-small {
+            padding: 12px 16px;
+            background: var(--border);
+            border: 1px solid #3e3e4e;
+            border-radius: 10px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: var(--font-family);
+            white-space: nowrap;
+            transition: all var(--transition-fast);
+            letter-spacing: 0.5px;
+        }
+        .btn-small:hover {
+            background: #3a3a4c;
+            border-color: var(--accent);
+            box-shadow: 0 0 16px rgba(124, 58, 237, 0.4);
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: var(--accent);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: var(--font-family);
+            letter-spacing: 0.5px;
+            transition: all var(--transition-smooth);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary:hover {
+            background: #8b5cf6;
+            box-shadow: 0 0 40px rgba(124, 58, 237, 0.6), 0 8px 24px rgba(0, 0, 0, 0.4);
+            transform: translateY(-2px);
+        }
+        .btn-primary:active {
+            transform: scale(0.97);
+            transition: transform 0.1s ease;
+        }
+
+        /* ===== MAIN LAYOUT ===== */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .app-container.visible {
+            opacity: 1;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: 4px 0 30px rgba(0, 0, 0, 0.3);
+        }
+        .sidebar-header {
+            padding: 20px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sidebar-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: #fff;
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 18px currentColor;
+        }
+        .sidebar-userinfo {
+            overflow: hidden;
+        }
+        .sidebar-nickname {
+            font-weight: 700;
+            font-size: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sidebar-roomid {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sidebar-channels {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        .channel-label {
+            padding: 10px 16px 4px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+        .channel-item {
+            padding: 10px 16px;
+            margin: 2px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+        .channel-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+        }
+        .channel-item.active {
+            background: rgba(124, 58, 237, 0.2);
+            color: #fff;
+            font-weight: 600;
+            box-shadow: inset 3px 0 0 var(--accent), 0 0 20px rgba(124, 58, 237, 0.15);
+        }
+        .channel-hash {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-muted);
+            width: 20px;
+            text-align: center;
+        }
+        .channel-item.active .channel-hash {
+            color: var(--accent-glow);
+        }
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-logout {
+            flex: 1;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: var(--font-family);
+            transition: all var(--transition-fast);
+            letter-spacing: 0.5px;
+        }
+        .btn-logout:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+            box-shadow: 0 0 14px rgba(239, 68, 68, 0.3);
+        }
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: var(--danger);
+            transition: all var(--transition-smooth);
+        }
+        .connection-dot.connected {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        /* ===== CHAT AREA ===== */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-chat);
+            min-width: 0;
+        }
+        .chat-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        .chat-header-hash {
+            font-size: 20px;
+            color: var(--text-muted);
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            scroll-behavior: smooth;
+        }
+        .chat-messages:empty::after {
+            content: 'Нет сообщений. Напишите первым! 🚀';
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            font-size: 15px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ===== MESSAGE BUBBLE ===== */
+        .message-wrapper {
+            display: flex;
+            gap: 12px;
+            padding: 6px 0;
+            animation: msgFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: background var(--transition-fast);
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin: 1px 0;
+        }
+        .message-wrapper:hover {
+            background: var(--msg-hover);
+        }
+        @keyframes msgFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.97);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .msg-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 15px;
+            color: #fff;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 12px currentColor;
+            align-self: flex-start;
+            margin-top: 2px;
+        }
+        .msg-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .msg-header {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 2px;
+        }
+        .msg-username {
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.3px;
+        }
+        .msg-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.3px;
+        }
+        .msg-text {
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        /* ===== INPUT AREA ===== */
+        .chat-input-area {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 14px 18px;
+            background: var(--bg-input);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: var(--font-family);
+            resize: none;
+            outline: none;
+            transition: all var(--transition-fast);
+            min-height: 48px;
+            max-height: 120px;
+            line-height: 1.4;
+        }
+        .chat-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 24px rgba(124, 58, 237, 0.3), 0 0 0 5px rgba(124, 58, 237, 0.06);
+        }
+        .chat-input::placeholder {
+            color: #4a4a58;
+        }
+        .btn-send {
+            padding: 14px 24px;
+            background: var(--accent);
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: var(--font-family);
+            letter-spacing: 0.5px;
+            transition: all var(--transition-smooth);
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-height: 48px;
+        }
+        .btn-send:hover {
+            background: #8b5cf6;
+            box-shadow: 0 0 36px rgba(124, 58, 237, 0.7), 0 6px 20px rgba(0, 0, 0, 0.4);
+            transform: translateY(-2px);
+        }
+        .btn-send:active {
+            transform: scale(0.95);
+            transition: transform 0.1s ease;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 640px) {
+            .sidebar {
+                width: 60px;
+                min-width: 60px;
+            }
+            .sidebar-header {
+                padding: 12px 8px;
+                justify-content: center;
+            }
+            .sidebar-userinfo,
+            .channel-label,
+            .sidebar-footer .btn-logout span,
+            .sidebar-nickname,
+            .sidebar-roomid,
+            .channel-item span:not(.channel-hash) {
+                display: none;
+            }
+            .channel-item {
+                justify-content: center;
+                padding: 10px;
+                margin: 2px 4px;
+            }
+            .sidebar-footer {
+                justify-content: center;
+            }
+            .btn-logout {
+                width: 36px;
+                height: 36px;
+                padding: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                font-size: 16px;
+            }
+            .chat-input-area {
+                padding: 10px 12px;
+                gap: 8px;
+            }
+            .chat-messages {
+                padding: 12px;
+            }
+            .btn-send {
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== МОДАЛЬНОЕ ОКНО АВТОРИЗАЦИИ ==================== -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="authModal">
+            <div class="modal-title">⚡ CyberChat</div>
+            <div class="modal-subtitle">Киберпанк-мессенджер в реальном времени</div>
+
+            <label class="modal-label" for="nicknameInput">Никнейм</label>
+            <input
+            class="modal-input"
+            type="text"
+            id="nicknameInput"
+            placeholder="Введите ваш ник..."
+            maxlength="24"
+            autocomplete="off"
+            />
+
+            <label class="modal-label">Цвет аватарки</label>
+            <div class="color-options" id="colorOptions">
+                <span class="color-dot active" data-color="#7c3aed" style="background:#7c3aed;color:#7c3aed;"></span>
+                <span class="color-dot" data-color="#ef4444" style="background:#ef4444;color:#ef4444;"></span>
+                <span class="color-dot" data-color="#f59e0b" style="background:#f59e0b;color:#f59e0b;"></span>
+                <span class="color-dot" data-color="#10b981" style="background:#10b981;color:#10b981;"></span>
+                <span class="color-dot" data-color="#3b82f6" style="background:#3b82f6;color:#3b82f6;"></span>
+                <span class="color-dot" data-color="#ec4899" style="background:#ec4899;color:#ec4899;"></span>
+                <span class="color-dot" data-color="#06b6d4" style="background:#06b6d4;color:#06b6d4;"></span>
+                <span class="color-dot" data-color="#f97316" style="background:#f97316;color:#f97316;"></span>
+            </div>
+
+            <label class="modal-label" for="roomIdInput">ID комнаты</label>
+            <div class="room-row">
+                <input
+                class="modal-input"
+                type="text"
+                id="roomIdInput"
+                placeholder="Введите ID комнаты..."
+                maxlength="36"
+                autocomplete="off"
+                />
+                <button class="btn-small" id="btnGenerateRoom" title="Сгенерировать новую комнату">🎲 Новый</button>
+            </div>
+            <p style="font-size:11px;color:var(--text-muted);margin:-8px 0 18px;text-align:center;">
+                Одинаковый ID комнаты у вас и друга = общий чат
+            </p>
+
+            <button class="btn-primary" id="btnLogin">🚀 Войти в чат</button>
+        </div>
+    </div>
+
+    <!-- ==================== ОСНОВНОЙ ИНТЕРФЕЙС ==================== -->
+    <div class="app-container" id="appContainer">
+        <!-- САЙДБАР -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-avatar" id="sidebarAvatar" style="background:#7c3aed;color:#7c3aed;">?</div>
+                <div class="sidebar-userinfo">
+                    <div class="sidebar-nickname" id="sidebarNickname">Гость</div>
+                    <div class="sidebar-roomid" id="sidebarRoomId">комната: ...</div>
+                </div>
+            </div>
+            <div class="sidebar-channels">
+                <div class="channel-label">Каналы</div>
+                <div class="channel-item active" data-channel="общий">
+                    <span class="channel-hash">#</span> <span>общий</span>
+                </div>
+                <div class="channel-item" data-channel="флуд">
+                    <span class="channel-hash">#</span> <span>флуд</span>
+                </div>
+                <div class="channel-item" data-channel="проекты">
+                    <span class="channel-hash">#</span> <span>проекты</span>
+                </div>
+            </div>
+            <div class="sidebar-footer">
+                <span class="connection-dot" id="connectionDot" title="Статус подключения"></span>
+                <button class="btn-logout" id="btnLogout" title="Выйти и сменить профиль">
+                    <span>🚪 Выйти</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ОБЛАСТЬ ЧАТА -->
+        <main class="chat-area">
+            <div class="chat-header">
+                <span class="chat-header-hash">#</span>
+                <span id="chatChannelTitle">общий</span>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-area">
+                <textarea
+                class="chat-input"
+                id="chatInput"
+                placeholder="Напишите сообщение... (Enter — отправить)"
+                rows="1"
+            ></textarea>
+            <button class="btn-send" id="btnSend">📨 Отправить</button>
+        </div>
+    </main>
+</div>
+
+<script>
+    (function() {
+        // ==================== DOM ЭЛЕМЕНТЫ ====================
+        const modalOverlay = document.getElementById('modalOverlay');
+        const authModal = document.getElementById('authModal');
+        const nicknameInput = document.getElementById('nicknameInput');
+        const roomIdInput = document.getElementById('roomIdInput');
+        const btnGenerateRoom = document.getElementById('btnGenerateRoom');
+        const btnLogin = document.getElementById('btnLogin');
+        const colorOptionsContainer = document.getElementById('colorOptions');
+        const colorDots = colorOptionsContainer.querySelectorAll('.color-dot');
+
+        const appContainer = document.getElementById('appContainer');
+        const sidebarAvatar = document.getElementById('sidebarAvatar');
+        const sidebarNickname = document.getElementById('sidebarNickname');
+        const sidebarRoomId = document.getElementById('sidebarRoomId');
+        const connectionDot = document.getElementById('connectionDot');
+        const btnLogout = document.getElementById('btnLogout');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const btnSend = document.getElementById('btnSend');
+        const chatChannelTitle = document.getElementById('chatChannelTitle');
+        const channelItems = document.querySelectorAll('.channel-item');
+
+        // ==================== СОСТОЯНИЕ ====================
+        let currentUser = {
+            username: '',
+            color: '#7c3aed',
+            roomId: ''
+        };
+        let activeChannel = 'общий';
+        let ws = null;
+        let reconnectTimer = null;
+        let messageQueue = [];
+        let allMessages = []; // все сообщения из WebSocket (фильтруем по каналу)
+
+        // ==================== WebSocket URL ====================
+        // Публичный демо-сервер Piesocket (бесплатный, без регистрации)
+        // Все клиенты на одном канале channel_1 видят сообщения друг друга.
+        // Мы фильтруем сообщения по roomId внутри самого приложения.
+        const WS_URL = 'wss://demo.piesocket.com/v3/channel_1?api_key=oCdCMcMPQpbvNjUIzqtvF1d2X2okWpDQ&notify_self=1';
+
+        // ==================== ПОМОЩНИКИ ====================
+        function generateRoomId() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < 12; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        function getInitials(name) {
+            if (!name) return '?';
+            const parts = name.trim().split(/\s+/);
+            if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+            return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+        }
+
+        function formatTime(isoString) {
+            try {
+                const d = new Date(isoString);
+                if (isNaN(d.getTime())) return '--:--';
+                return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                return '--:--';
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ==================== СОХРАНЕНИЕ / ЗАГРУЗКА ДАННЫХ ====================
+        function saveToStorage() {
+            const data = {
+                username: currentUser.username,
+                color: currentUser.color,
+                roomId: currentUser.roomId
+            };
+            localStorage.setItem('cyberchat_user', JSON.stringify(data));
+        }
+
+        function loadFromStorage() {
+            const raw = localStorage.getItem('cyberchat_user');
+            if (!raw) return null;
+            try {
+                const data = JSON.parse(raw);
+                if (data.username && data.color && data.roomId) {
+                    return data;
+                }
+            } catch (e) {
+                // ignore
+            }
+            return null;
+        }
+
+        function clearStorage() {
+            localStorage.removeItem('cyberchat_user');
+        }
+
+        // ==================== МОДАЛЬНОЕ ОКНО ====================
+        function showModal() {
+            modalOverlay.classList.remove('hidden');
+            nicknameInput.value = '';
+            roomIdInput.value = generateRoomId();
+            // Сброс цвета на первый
+            colorDots.forEach(d => d.classList.remove('active'));
+            const firstDot = colorDots[0];
+            if (firstDot) {
+                firstDot.classList.add('active');
+                currentUser.color = firstDot.dataset.color;
+            }
+            setTimeout(() => nicknameInput.focus(), 200);
+        }
+
+        function hideModal() {
+            modalOverlay.classList.add('hidden');
+            appContainer.classList.add('visible');
+        }
+
+        // Обработчики выбора цвета
+        colorDots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                colorDots.forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+                currentUser.color = dot.dataset.color;
+            });
+        });
+
+        // Генерация новой комнаты
+        btnGenerateRoom.addEventListener('click', () => {
+            roomIdInput.value = generateRoomId();
+            roomIdInput.focus();
+            roomIdInput.select();
+        });
+
+        // Вход
+        btnLogin.addEventListener('click', performLogin);
+        nicknameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') performLogin();
+        });
+        roomIdInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') performLogin();
+        });
+
+        function performLogin() {
+            const nickname = nicknameInput.value.trim();
+            const roomId = roomIdInput.value.trim();
+
+            if (!nickname) {
+                nicknameInput.focus();
+                nicknameInput.style.borderColor = '#ef4444';
+                nicknameInput.style.boxShadow = '0 0 20px rgba(239,68,68,0.5)';
+                setTimeout(() => {
+                    nicknameInput.style.borderColor = '';
+                    nicknameInput.style.boxShadow = '';
+                }, 1500);
+                return;
+            }
+            if (!roomId) {
+                roomIdInput.focus();
+                roomIdInput.style.borderColor = '#ef4444';
+                roomIdInput.style.boxShadow = '0 0 20px rgba(239,68,68,0.5)';
+                setTimeout(() => {
+                    roomIdInput.style.borderColor = '';
+                    roomIdInput.style.boxShadow = '';
+                }, 1500);
+                return;
+            }
+            if (nickname.length > 24) {
+                alert('Никнейм не должен превышать 24 символа.');
+                return;
+            }
+            if (roomId.length > 36) {
+                alert('ID комнаты не должен превышать 36 символов.');
+                return;
+            }
+
+            currentUser.username = nickname;
+            currentUser.roomId = roomId;
+            // color уже установлен через выбор
+
+            saveToStorage();
+            hideModal();
+            updateSidebarUI();
+            connectWebSocket();
+            chatInput.focus();
+        }
+
+        // ==================== ИНТЕРФЕЙС САЙДБАРА ====================
+        function updateSidebarUI() {
+            sidebarNickname.textContent = currentUser.username;
+            sidebarRoomId.textContent = 'комната: ' + currentUser.roomId;
+            sidebarAvatar.style.background = currentUser.color;
+            sidebarAvatar.style.color = currentUser.color;
+            sidebarAvatar.textContent = getInitials(currentUser.username);
+        }
+
+        // ==================== КАНАЛЫ ====================
+        channelItems.forEach(item => {
+            item.addEventListener('click', () => {
+                channelItems.forEach(ci => ci.classList.remove('active'));
+                item.classList.add('active');
+                activeChannel = item.dataset.channel;
+                chatChannelTitle.textContent = activeChannel;
+                renderAllMessages();
+                scrollToBottom();
+            });
+        });
+
+        // ==================== WebSocket ПОДКЛЮЧЕНИЕ ====================
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // Уже подключены, просто обновим UI
+                updateConnectionStatus(true);
+                return;
+            }
+            if (ws && (ws.readyState === WebSocket.CONNECTING)) {
+                return; // ждём подключения
+            }
+
+            // Закрываем предыдущее соединение, если есть
+            if (ws) {
+                try { ws.close(); } catch (e) { /* ignore */ }
+                ws = null;
+            }
+
+            updateConnectionStatus(false);
+
+            try {
+                ws = new WebSocket(WS_URL);
+            } catch (e) {
+                console.error('Ошибка создания WebSocket:', e);
+                scheduleReconnect();
+                return;
+            }
+
+            ws.onopen = () => {
+                console.log('🔗 WebSocket подключён. Комната:', currentUser.roomId);
+                updateConnectionStatus(true);
+                // Отправляем все сообщения из очереди
+                flushMessageQueue();
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    // Piesocket может оборачивать или присылать системные сообщения
+                    // Игнорируем служебные сообщения без наших полей
+                    if (data && data.username && data.text && data.roomId && data.timestamp && data.color &&
+                        data.channel) {
+                        // Принимаем ТОЛЬКО сообщения для нашей комнаты
+                        if (data.roomId === currentUser.roomId) {
+                            allMessages.push(data);
+                            // Если сообщение для текущего активного канала — рендерим
+                            if (data.channel === activeChannel) {
+                                appendMessageToDOM(data);
+                                scrollToBottom();
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Не JSON или не наше сообщение — игнорируем
+                }
+            };
+
+            ws.onerror = (err) => {
+                console.error('⚠️ Ошибка WebSocket:', err);
+                updateConnectionStatus(false);
+            };
+
+            ws.onclose = (event) => {
+                console.log('🔌 WebSocket закрыт. Код:', event.code, 'Причина:', event.reason);
+                updateConnectionStatus(false);
+                ws = null;
+                scheduleReconnect();
+            };
+        }
+
+        function scheduleReconnect() {
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            reconnectTimer = setTimeout(() => {
+                console.log('🔄 Попытка переподключения...');
+                if (currentUser.username && currentUser.roomId) {
+                    connectWebSocket();
+                }
+            }, 3000);
+        }
+
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                connectionDot.classList.add('connected');
+                connectionDot.title = 'Подключено';
+            } else {
+                connectionDot.classList.remove('connected');
+                connectionDot.title = 'Нет соединения';
+            }
+        }
+
+        function flushMessageQueue() {
+            while (messageQueue.length > 0) {
+                const msg = messageQueue.shift();
+                sendViaWebSocket(msg);
+            }
+        }
+
+        function sendViaWebSocket(messageObj) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(messageObj));
+                return true;
+            } else {
+                // Ставим в очередь
+                messageQueue.push(messageObj);
+                // Пытаемся переподключиться
+                if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+                    connectWebSocket();
+                }
+                return false;
+            }
+        }
+
+        // ==================== ОТПРАВКА СООБЩЕНИЙ ====================
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            if (text.length > 2000) {
+                alert('Сообщение слишком длинное (макс. 2000 символов).');
+                return;
+            }
+
+            const messageObj = {
+                username: currentUser.username,
+                color: currentUser.color,
+                text: text,
+                timestamp: new Date().toISOString(),
+                roomId: currentUser.roomId,
+                channel: activeChannel
+            };
+
+            // Добавляем в локальный массив и рендерим сразу (оптимистично)
+            allMessages.push(messageObj);
+            appendMessageToDOM(messageObj);
+            scrollToBottom();
+
+            // Отправляем через WebSocket
+            sendViaWebSocket(messageObj);
+
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            chatInput.focus();
+        }
+
+        btnSend.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Авто-ресайз textarea
+        chatInput.addEventListener('input', () => {
+            chatInput.style.height = 'auto';
+            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+        });
+
+        // ==================== РЕНДЕРИНГ СООБЩЕНИЙ ====================
+        function appendMessageToDOM(msg) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'msg-avatar';
+            avatar.style.background = msg.color;
+            avatar.style.color = msg.color;
+            avatar.textContent = getInitials(msg.username);
+
+            const content = document.createElement('div');
+            content.className = 'msg-content';
+
+            const header = document.createElement('div');
+            header.className = 'msg-header';
+
+            const usernameSpan = document.createElement('span');
+            usernameSpan.className = 'msg-username';
+            usernameSpan.style.color = msg.color;
+            usernameSpan.textContent = msg.username;
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'msg-time';
+            timeSpan.textContent = formatTime(msg.timestamp);
+
+            header.appendChild(usernameSpan);
+            header.appendChild(timeSpan);
+
+            const textDiv = document.createElement('div');
+            textDiv.className = 'msg-text';
+            textDiv.textContent = msg.text;
+
+            content.appendChild(header);
+            content.appendChild(textDiv);
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(content);
+
+            chatMessages.appendChild(wrapper);
+        }
+
+        function renderAllMessages() {
+            chatMessages.innerHTML = '';
+            const filtered = allMessages.filter(m => m.channel === activeChannel);
+            filtered.forEach(msg => appendMessageToDOM(msg));
+            if (filtered.length === 0) {
+                // Пусто — покажется псевдоэлемент :empty
+            }
+        }
+
+        function scrollToBottom() {
+            requestAnimationFrame(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
+        }
+
+        // ==================== ВЫХОД ====================
+        btnLogout.addEventListener('click', () => {
+            if (confirm('Вы уверены, что хотите выйти? Данные профиля будут удалены с этого устройства.')) {
+                // Закрываем WebSocket
+                if (ws) {
+                    try { ws.close(); } catch (e) { /* ignore */ }
+                    ws = null;
+                }
+                if (reconnectTimer) clearTimeout(reconnectTimer);
+                allMessages = [];
+                messageQueue = [];
+                chatMessages.innerHTML = '';
+                updateConnectionStatus(false);
+                clearStorage();
+                currentUser = { username: '', color: '#7c3aed', roomId: '' };
+                appContainer.classList.remove('visible');
+                showModal();
+            }
+        });
+
+        // ==================== ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ ====================
+        function init() {
+            const saved = loadFromStorage();
+            if (saved) {
+                currentUser.username = saved.username;
+                currentUser.color = saved.color;
+                currentUser.roomId = saved.roomId;
+                updateSidebarUI();
+                hideModal();
+                connectWebSocket();
+                // Восстанавливаем активный канал
+                activeChannel = 'общий';
+                chatChannelTitle.textContent = activeChannel;
+                channelItems.forEach(ci => {
+                    ci.classList.remove('active');
+                    if (ci.dataset.channel === activeChannel) ci.classList.add('active');
+                });
+                chatInput.focus();
+            } else {
+                // Первый вход
+                appContainer.classList.remove('visible');
+                showModal();
+                // Предустановка цвета
+                const firstDot = colorDots[0];
+                if (firstDot) {
+                    firstDot.classList.add('active');
+                    currentUser.color = firstDot.dataset.color;
+                }
+                roomIdInput.value = generateRoomId();
+            }
+        }
+
+        // Запуск
+        init();
+
+        // ==================== ДОПОЛНИТЕЛЬНО: переподключение при потере фокуса окна ====================
+        window.addEventListener('online', () => {
+            console.log('🌐 Браузер снова онлайн');
+            if (currentUser.username && currentUser.roomId) {
+                connectWebSocket();
+            }
+        });
+        window.addEventListener('offline', () => {
+            console.log('📴 Браузер офлайн');
+            updateConnectionStatus(false);
+        });
+
+        // Пинг-понг для поддержания соединения (раз в 45 секунд)
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                // Отправляем безвредный пинг (некоторые прокси закрывают неактивные соединения)
+                try {
+                    ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
+                } catch (e) {
+                    // ignore
+                }
+            } else if (currentUser.username && currentUser.roomId &&
+                (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING)) {
+                connectWebSocket();
+            }
+        }, 45000);
+
+        console.log('🚀 CyberChat инициализирован.');
+        console.log('🌐 Используется публичный WebSocket-сервер Piesocket (demo).');
+        console.log('💡 Чтобы общаться с другом, убедитесь, что у вас одинаковый ID комнаты.');
+        console.log('📋 Ваш текущий ID комнаты:', currentUser.roomId || '(не установлен)');
+    })();
+</script>
+</body>
+</html>
