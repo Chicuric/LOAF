@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BATON OS: Cloud Database</title>
+    <!-- Подключаем официальное защищенное ядро облачной базы данных Supabase -->
+    <script src="jsdelivr.net"></script>
+    <style>
+        :root {
+            --neon-color: #ff9f1c;
+            --neon-glow: rgba(255, 159, 28, 0.35);
+            --text-main: #ffa62b;
+            --bg-dark: #100a06;
+            --bg-panel: rgba(26, 18, 11, 0.65);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Consolas', 'Courier New', monospace; }
+        body { background-color: var(--bg-dark); color: #ffffff; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        body::after { content: " "; display: block; position: fixed; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(16, 10, 6, 0) 50%, rgba(0, 0, 0, 0.25) 50%); z-index: 9999; pointer-events: none; }
+        
+        .space-bg { position: fixed; top:0; left:0; width:100%; height:100%; z-index: -3; background: radial-gradient(circle at 50% 50%, #2a1b10 0%, #100a06 100%); }
+        .stars { position: fixed; top:0; left:0; width:100%; height:100%; z-index: -2; background: radial-gradient(rgba(255,255,255,0.15), transparent 2%) 0 0; background-size: 300px 300px; }
+
+        #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; }
+        .auth-container { background: var(--bg-panel); padding: 45px; border: 2px solid var(--neon-color); box-shadow: 0 0 40px var(--neon-glow); text-align: center; max-width: 420px; width: 90%; backdrop-filter: blur(20px); }
+        .glitch-title { color: #ffffff; font-size: 38px; font-weight: 900; margin-bottom: 5px; text-shadow: 0 0 15px var(--neon-color); letter-spacing: 4px; }
+        .auth-container p { color: var(--text-main); margin-bottom: 35px; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; }
+        .auth-container input { width: 100%; padding: 16px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,159,28,0.2); border-bottom: 2px solid var(--text-main); color: #fff; font-size: 15px; margin-bottom: 30px; outline: none; }
+        .auth-container button { width: 100%; padding: 15px; background: var(--neon-color); border: none; color: #000; font-size: 14px; font-weight: 900; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; }
+
+        #app-container { display: flex; width: 100%; height: 100vh; padding: 25px; gap: 25px; }
+        .sidebar { width: 300px; background: var(--bg-panel); border: 1px solid rgba(255, 255, 255, 0.03); border-left: 2px solid var(--neon-color); backdrop-filter: blur(25px); display: flex; flex-direction: column; padding: 25px; }
+        .sidebar h2 { color: #ffffff; font-size: 14px; margin-bottom: 20px; letter-spacing: 2px; text-transform: uppercase; border-left: 3px solid var(--neon-color); padding-left: 10px; }
+        
+        .content-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-panel); border: 1px solid rgba(255, 255, 255, 0.03); border-right: 2px solid var(--neon-color); backdrop-filter: blur(25px); }
+        .chat-header { height: 65px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.03); display: flex; align-items: center; padding: 0 25px; }
+        .chat-header h3 { color: #fff; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+        
+        .messages-container { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+        .message { background: rgba(12, 8, 5, 0.8); padding: 14px 18px; border: 1px solid rgba(255, 255, 255, 0.02); border-left: 3px solid var(--neon-color); max-width: 68%; align-self: flex-start; }
+        .message.my-msg { align-self: flex-end; border-left: none; border-right: 3px solid var(--text-main); background: rgba(255, 159, 28, 0.02); }
+        .msg-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--neon-color); margin-bottom: 6px; font-weight: bold; gap: 40px; }
+        .msg-time { color: #55443a; font-weight: normal; }
+        .msg-text { color: #fff; font-size: 14px; }
+
+        .input-area { padding: 25px; background: rgba(0,0,0,0.3); display: flex; gap: 20px; }
+        .input-area input { flex: 1; padding: 16px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.03); color: #ffffff; outline: none; }
+        .input-area button { padding: 0 35px; background: var(--neon-color); border: none; color: #000; font-weight: 900; cursor: pointer; text-transform: uppercase; }
+        
+        .sys-btn { margin-top: auto; padding: 11px; background: rgba(255,0,85,0.05); border: 1px solid #ff0055; color: #ff0055; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+    <div class="space-bg"></div>
+    <div class="stars"></div>
+
+    <!-- ВХОД -->
+    <div id="auth-screen">
+        <div class="auth-container">
+            <div class="glitch-title">BATON OS</div>
+            <p>> OBLAKO DATABASE // CONNECTED v8.0</p>
+            <input type="text" id="username-input" placeholder="НАРЕЖЬТЕ СВОЙ НИКНЕЙМ..." maxlength="15" autocomplete="off">
+            <button id="login-btn">НАРЕЗАТЬ ПРОФИЛЬ</button>
+        </div>
+    </div>
+
+    <!-- ЧАТ -->
+    <div id="app-container">
+        <div class="sidebar">
+            <h2>// СТАТУС ПЕЧИ</h2>
+            <div style="color: var(--text-main); font-size: 11px; margin-bottom: 25px;" id="user-status">> ПЕКАРЬ: OFFLINE</div>
+            <button class="sys-btn" onclick="clearProfile()">[X] ИЗВЛЕЧЬ БАТON (СБРОС)</button>
+        </div>
+
+        <div class="content-area">
+            <div class="chat-header">
+                <h3 id="chat-title">> ПОДКЛЮЧЕНИЕ К ОБЛАКУ СУПАБЕЙЗ...</h3>
+            </div>
+            <div class="messages-container" id="messages-box"></div>
+            <div class="input-area">
+                <input type="text" id="msg-input" placeholder="Закиньте строчку в печь..." autocomplete="off">
+                <button id="send-btn">BAKE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Выделенные зашифрованные ключи доступа к облачной БД проекта
+        const SUPABASE_URL = "supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1bmJ4dGdxZ3puZmxsYnNob3Z6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTU3MTU2MDAsImV4cCI6MjAzMTI5MTYwMH0.3Fz_16YxRj9P_x9R_W_9z_w-X_3Fz_16YxRj9P_x9R_W";
+        
+        let currentUser = localStorage.getItem('loaf_live_user') || "";
+        let supabaseClient;
+        
+        const authScreen = document.getElementById('auth-screen');
+        const usernameInput = document.getElementById('username-input');
+        const loginBtn = document.getElementById('login-btn');
+        const messagesBox = document.getElementById('messages-box');
+        const msgInput = document.getElementById('msg-input');
+        const sendBtn = document.getElementById('send-btn');
+        const userStatus = document.getElementById('user-status');
+
+        if (currentUser) {
+            authScreen.style.display = 'none';
+            userStatus.innerText = `> ПЕКАРЬ: ${currentUser} [ONLINE]`;
+            initSupabase();
+        }
+
+        loginBtn.addEventListener('click', () => {
+            const name = usernameInput.value.trim();
+            if (name) {
+                currentUser = name;
+                localStorage.setItem('loaf_live_user', name);
+                authScreen.style.display = 'none';
+                userStatus.innerText = `> ПЕКАРЬ: ${name} [ONLINE]`;
+                initSupabase();
+            }
+        });
+
+        // Подключение к базе данных и выгрузка истории
+        function initSupabase() {
+            if (typeof supabase === 'undefined') {
+                document.getElementById('chat-title').innerText = `> ОШИБКА: БЛОКИРОВКА ОБЛАЧНОГО СКРИПТА`;
+                return;
+            }
+
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            document.getElementById('chat-title').innerText = `> ОБЛАЧНАЯ ПЕЧЬ ДАННЫХ // БАЗА СИНХРОНИЗИРОВАНА`;
+            
+            // Загружаем всю историю сообщений из облака
+            fetchMessages();
+
+            // Включаем автообновление чата каждые 3 секунды, чтобы ловить сообщения друга
+            setInterval(fetchMessages, 3000);
+        }
+
+        async function fetchMessages() {
+            const { data, error } = await supabaseClient
+                .from('messages')
+                .select('*')
+                .order('id', { ascending: true })
+                .limit(50);
+
+            if (!error && data) {
+                messagesBox.innerHTML = ""; // Очищаем экран перед рендером новой истории
+                data.forEach(msg => displayMessage(msg));
+            }
+        }
+
+        async function sendMessage() {
+            const text = msgInput.value.trim();
+            if (text && supabaseClient) {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                // Записываем сообщение напрямую в таблицу облака
+                await supabaseClient
+                    .from('messages')
+                    .insert([{ username: currentUser, text: text, time: timeStr }]);
+                
+                msgInput.value = "";
+                fetchMessages();
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+        function displayMessage(data) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message');
+            if (data.username === currentUser) msgDiv.classList.add('my-msg');
+            msgDiv.innerHTML = `
+                <div class="msg-meta"><span>// ${data.username}</span><span class="msg-time">${data.time}</span></div>
+                <div class="msg-text">${escapeHTML(data.text)}</div>
+            `;
+            messagesBox.appendChild(msgDiv);
+            messagesBox.scrollTop = messagesBox.scrollHeight;
+        }
+
+        function clearProfile() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        function escapeHTML(str) { return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    </script>
+</body>
+</html>
